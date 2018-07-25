@@ -9,8 +9,18 @@ const returnStatus = (res, err) => {
   res.status(code).send(err)
 }
 
+// only set NO_AUTH to true for instances that aren't proxied
+const noAuth = process.env.NO_AUTH === 'true' // require true, everything else is false
+
 /* GET list of users */
 router.get('/users', (req, res) => {
+  if(!noAuth) {
+    if(!req.headers.authorization) {
+      return res.status(401).send('Authorization required')
+    } else { // if !authorized
+      return res.status(403).send('Authorization rejected')
+    }
+  }
   User.getAllUsers((err, ids) => {
     if(err) return returnStatus(res, err)
     return res.send(ids)
@@ -18,6 +28,13 @@ router.get('/users', (req, res) => {
 })
 /* GET specific user */
 router.get('/users/:user', (req, res) => {
+  if(!noAuth) {
+    if(!req.headers.authorization) {
+      return res.status(401).send('Authorization required')
+    } else { // if !authorized
+      return res.status(403).send('Authorization rejected')
+    }
+  }
   User.isValid(req.params.user, (err, user) => {
     if(err) return returnStatus(res, err)
     if(!user) return res.status(404).send('user not found')
@@ -28,9 +45,32 @@ router.get('/users/:user', (req, res) => {
 /* create new user */
 router.post('/users', (req, res) => {
   if(!req.body.password) return res.status(400).send('password is required')
-  bcrypt.hash(req.body.password, 10, (err, hash) => {
-    if(!req.body.username) return res.status(400).send('username is required')
-    const user = new User(req.body.username,req.body.fullname,req.body.email,hash,true)
+  User.isValid(req.params.user, (err, user) => {
+    if(!err || user) return res.status(400).send('user already exists')
+    bcrypt.hash(req.body.password, 10, (err, hash) => {
+      if(!req.body.username) return res.status(400).send('username is required')
+      const user = new User(req.body.username,req.body.fullname,req.body.email,hash,true)
+      user.saveUser(err => {
+        if(err) return returnStatus(res, err)
+        user.hash = null
+        res.status(201).send(user)
+      })
+    })
+  })
+})
+
+router.post('/users/:user/validate', (req, res) => {
+  if(!noAuth) {
+    if(!req.headers.authorization) {
+      return res.status(401).send('Authorization required')
+    } else { // if !authorized
+      return res.status(403).send('Authorization rejected')
+    }
+  }
+  User.isValid(req.params.user, (err, user) => {
+    if(err) return returnStatus(res, err)
+    if(!user) return res.status(404).send('user not found')
+    user.tentative = false;
     user.saveUser(err => {
       if(err) return returnStatus(res, err)
       user.hash = null
@@ -38,5 +78,6 @@ router.post('/users', (req, res) => {
     })
   })
 })
+
 
 module.exports = router

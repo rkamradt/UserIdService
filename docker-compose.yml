@@ -6,6 +6,14 @@ services:
       - "3000:3000"
     networks:
       - network
+  intapi:
+    build: .
+    environment:
+      - NO_AUTH=true
+    ports:
+      - "3001:3000"
+    networks:
+      - network
   redis:
     image: redis:alpine
     networks:
