@@ -1,2 +1,2 @@
-docker build --tag rlkamradt/UserIdService .
-docker push rlkamradt/UserIdService
+docker build --tag rlkamradt/useridservice .
+docker push rlkamradt/useridservice
