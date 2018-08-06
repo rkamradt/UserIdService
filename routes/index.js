@@ -42,13 +42,37 @@ router.get('/users/:user', (req, res) => {
     return res.send(user)
   })
 })
+/* GET specific user */
+router.get('/users/:user/confirm', (req, res) => {
+  if(!noAuth) {
+    if(!req.headers.authorization) {
+      return res.status(401).send('Authorization required')
+    } else { // if !authorized
+      return res.status(403).send('Authorization rejected')
+    }
+  }
+  if(!req.headers.password) return res.status(400).send('password is required')
+  if(!req.params.user) return res.status(400).send('username is required')
+  User.isValid(req.params.user, (err, user) => {
+    if(err) return returnStatus(res, err)
+    if(!user) return res.status(404).send('user not found')
+    bcrypt.compare(req.headers.password, user.hash, (err, match) => {
+      if(err) return res.status(500).send('error comparing hash')
+      if(!match) return res.status(403).send('unconfirmed')
+      user.hash = null;
+      return res.send(user)
+    })
+  })
+})
 /* create new user */
 router.post('/users', (req, res) => {
   if(!req.body.password) return res.status(400).send('password is required')
-  User.isValid(req.params.user, (err, user) => {
-    if(!err || user) return res.status(400).send('user already exists')
+  if(!req.body.username) return res.status(400).send('username is required')
+  User.isValid(req.body.username, (err, user) => {
+    if(err) return res.status(500).send('error looking up user')
+    if(user) return res.status(400).send('user already exists')
     bcrypt.hash(req.body.password, 10, (err, hash) => {
-      if(!req.body.username) return res.status(400).send('username is required')
+      if(err) return res.status(500).send('error creating hash')
       const user = new User(req.body.username,req.body.fullname,req.body.email,hash,true)
       user.saveUser(err => {
         if(err) return returnStatus(res, err)

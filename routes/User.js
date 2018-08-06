@@ -19,7 +19,7 @@ module.exports = class User {
   static isValid(userId, next) {
     client.get(userKey + userId, (err, data) => {
       if(err) return next(err)
-      if(!data) return next("not found")
+      if(!data) return next(null, null)
       data = JSON.parse(data)
       const user = new User(data.username, data.fullname, data.email, data.hash, data.tentative)
       return next(null, user)
