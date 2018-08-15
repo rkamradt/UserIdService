@@ -2,6 +2,7 @@ const express = require('express')
 const router = express.Router()
 const User = require('./User')
 const bcrypt = require('bcrypt')
+const passport = require('passport')
 
 const returnStatus = (res, err) => {
   console.log('in returnStatus err = ' + JSON.stringify(err))
@@ -10,31 +11,21 @@ const returnStatus = (res, err) => {
 }
 
 // only set NO_AUTH to true for instances that aren't proxied
-const noAuth = process.env.NO_AUTH === 'true' // require true, everything else is false
+const authenticate = process.env.NO_AUTH === 'true' ?
+  passport.authenticate('custom', { session: false }) :
+  passport.authenticate('bearer', { session: false })  // require true, everything else is false
 
 /* GET list of users */
-router.get('/users', (req, res) => {
-  if(!noAuth) {
-    if(!req.headers.authorization) {
-      return res.status(401).send('Authorization required')
-    } else { // if !authorized
-      return res.status(403).send('Authorization rejected')
-    }
-  }
+router.get('/users', authenticate, (req, res) => {
+  // todo check authenticated for admin role
   User.getAllUsers((err, ids) => {
     if(err) return returnStatus(res, err)
     return res.send(ids)
   })
 })
 /* GET specific user */
-router.get('/users/:user', (req, res) => {
-  if(!noAuth) {
-    if(!req.headers.authorization) {
-      return res.status(401).send('Authorization required')
-    } else { // if !authorized
-      return res.status(403).send('Authorization rejected')
-    }
-  }
+router.get('/users/:user', authenticate, (req, res) => {
+  if(process.env.NO_AUTH !== 'true' && req.user.username !== req.params.user) return res.status(403).send('Forbidden')
   User.isValid(req.params.user, (err, user) => {
     if(err) return returnStatus(res, err)
     if(!user) return res.status(404).send('user not found')
@@ -42,15 +33,8 @@ router.get('/users/:user', (req, res) => {
     return res.send(user)
   })
 })
-/* GET specific user */
+/* GET specific user (password verified) */
 router.get('/users/:user/confirm', (req, res) => {
-  if(!noAuth) {
-    if(!req.headers.authorization) {
-      return res.status(401).send('Authorization required')
-    } else { // if !authorized
-      return res.status(403).send('Authorization rejected')
-    }
-  }
   if(!req.headers.password) return res.status(400).send('password is required')
   if(!req.params.user) return res.status(400).send('username is required')
   User.isValid(req.params.user, (err, user) => {
@@ -83,14 +67,8 @@ router.post('/users', (req, res) => {
   })
 })
 
-router.post('/users/:user/validate', (req, res) => {
-  if(!noAuth) {
-    if(!req.headers.authorization) {
-      return res.status(401).send('Authorization required')
-    } else { // if !authorized
-      return res.status(403).send('Authorization rejected')
-    }
-  }
+router.post('/users/:user/validate', authenticate, (req, res) => {
+  // todo check authenticated for admin role
   User.isValid(req.params.user, (err, user) => {
     if(err) return returnStatus(res, err)
     if(!user) return res.status(404).send('user not found')

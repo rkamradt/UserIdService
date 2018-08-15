@@ -1,13 +1,25 @@
-version: "3"
+version: "2"
 services:
-  api:
+  oauth2:
+    image: rlkamradt/oauth2service
+    env_file:
+      - ~/.secrets/auth.env
+    ports:
+      - "8888:8080"
+    networks:
+      - network
+  idapi:
     build: .
+    env_file:
+      - ~/.secrets/auth.env
     ports:
       - "3000:3000"
     networks:
       - network
-  intapi:
+  intidapi:
     build: .
+    env_file:
+      - ~/.secrets/auth.env
     environment:
       - NO_AUTH=true
     ports:
